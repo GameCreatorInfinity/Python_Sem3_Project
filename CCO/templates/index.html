@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Currency Converter</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      background: url("../background.png") no-repeat center center fixed;
+      background-size: cover;
+      font-family: "Segoe UI", Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Marquee styling */
+    #currList {
+      width: 100%;
+      padding: 10px 0;
+      background: linear-gradient(90deg, #d77300, #00bcd4);
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    .converter-box {
+      background: rgba(255, 255, 255, 0.92);
+      padding: 25px 30px;
+      border-radius: 14px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+      width: 320px;
+      text-align: center;
+    }
+
+    label {
+      display: block;
+      margin-top: 10px;
+      font-size: 14px;
+      color: #333;
+      text-align: left;
+    }
+
+    select, input {
+      width: 100%;
+      padding: 8px 10px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 15px;
+      outline: none;
+    }
+
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+
+    button {
+      background-color: #0078d7;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      margin-top: 15px;
+      width: 100%;
+      font-size: 15px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: #005fa3;
+    }
+
+    #status {
+      margin-top: 12px;
+      color: #2e7d32;
+      font-size: 13px;
+    }
+
+    #result {
+      margin-top: 12px;
+      font-weight: bold;
+      font-size: 16px;
+      color: #111;
+    }
+  </style>
+</head>
+<body>
+  <!-- Scrolling currency marquee -->
+  <marquee id="currList">Fetching available currencies...</marquee>
+
+  <div class="converter-box">
+    <h2>💱 Currency Converter</h2>
+    <form id="convForm">
+      <label>FROM currency:</label>
+      <select id="fromCurr"></select>
+
+      <label>TO currency:</label>
+      <select id="toCurr"></select>
+
+      <label>Amount:</label>
+      <input id="amount" type="number" step="any" placeholder="Enter amount" required />
+
+      <button type="submit">Convert</button>
+    </form>
+
+    <div id="status"></div>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const apiUrl = "/convert";
+
+    async function fetchRates() {
+      document.getElementById('status').textContent = "Fetching latest exchange rates...";
+      try {
+        const resp = await fetch(apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ from: "USD", to: "INR", amount: 1 })
+        });
+        const data = await resp.json();
+
+        if (data.error) throw new Error(data.error);
+
+        document.getElementById('status').textContent = "Exchange rates updated successfully!";
+        populateDropdowns(data.rates);
+        return data.rates;
+      } catch (err) {
+        document.getElementById('status').textContent = "Error fetching rates: " + err;
+        return null;
+      }
+    }
+
+    function populateDropdowns(rates) {
+      const fromSelect = document.getElementById('fromCurr');
+      const toSelect = document.getElementById('toCurr');
+      const marquee = document.getElementById('currList');
+
+      fromSelect.innerHTML = "";
+      toSelect.innerHTML = "";
+
+      rates.forEach(code => {
+        fromSelect.innerHTML += `<option value="${code}">${code}</option>`;
+        toSelect.innerHTML += `<option value="${code}">${code}</option>`;
+      });
+
+      marquee.textContent = "Available currencies: " + rates.join(", ");
+    }
+
+    document.getElementById('convForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const from = document.getElementById('fromCurr').value;
+      const to = document.getElementById('toCurr').value;
+      const amount = parseFloat(document.getElementById('amount').value);
+
+      if (!from || !to || isNaN(amount)) {
+        document.getElementById('result').textContent = "Please enter valid values.";
+        return;
+      }
+
+      document.getElementById('status').textContent = "Converting...";
+      document.getElementById('result').textContent = "";
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ from, to, amount })
+        });
+        const data = await response.json();
+
+        if (data.error) {
+          document.getElementById('result').textContent = data.error;
+          document.getElementById('status').textContent = "Conversion failed.";
+        } else {
+          document.getElementById('result').textContent =
+            `${data.amount.toFixed(2)} ${data.from} = ${data.converted.toFixed(2)} ${data.to}`;
+          document.getElementById('status').textContent = "Conversion successful!";
+        }
+      } catch (err) {
+        document.getElementById('status').textContent = "Error: " + err;
+      }
+    });
+
+    fetchRates();
+  </script>
+</body>
+</html>
